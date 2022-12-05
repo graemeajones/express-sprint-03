@@ -22,13 +22,19 @@ app.use(express.urlencoded({ extended: true }));
 const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
   setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET ');
 
-  const buildModulemembersInsertSql = (record) => {
-    let table = 'Modulemembers';
-    let mutableFields = ['ModulememberModuleID', 'ModulememberUserID'];
-    return `INSERT INTO ${table} ` + buildSetFields(mutableFields);
-  };
+const buildModulesUpdateSql = () => {
+  let table = 'Modules';
+  let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
+  return `UPDATE ${table} ` + buildSetFields(mutableFields) + ` WHERE ModuleID=:ModuleID`;
+};
 
-const buildModulesInsertSql = (record) => {
+const buildModulemembersInsertSql = () => {
+  let table = 'Modulemembers';
+  let mutableFields = ['ModulememberModuleID', 'ModulememberUserID'];
+  return `INSERT INTO ${table} ` + buildSetFields(mutableFields);
+};
+
+const buildModulesInsertSql = () => {
   let table = 'Modules';
   let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
   return `INSERT INTO ${table} ` + buildSetFields(mutableFields);
@@ -114,6 +120,23 @@ const buildYearsSelectSql = (id, variant) => {
   return sql;
 };
 
+const updateModules = async (sql, id, record) => {
+  try {
+    const status = await database.query(sql, { ...record, ModuleID: id } );
+
+    const recoverRecordSql = buildModulesSelectSql(id, null);
+
+    const { isSuccess, result, message } = await read(recoverRecordSql);
+        
+    return isSuccess
+      ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
+      : { isSuccess: false, result: null, message: `Failed to recover the updated record: ${message}` };
+  }
+  catch (error) {
+    return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
+  }
+};
+
 const createModulemembers = async (sql,record) => {
   try {
     const status = await database.query(sql,record);
@@ -159,12 +182,12 @@ const read = async (sql) => {
     return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
   }
 };
-
+ 
 const postModulemembersController = async (req, res) => {
   // Validate request
 
   // Access data
-  const sql = buildModulemembersInsertSql(req.body);
+  const sql = buildModulemembersInsertSql();
   const { isSuccess, result, message: accessorMessage } = await createModulemembers(sql,req.body);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
@@ -200,12 +223,26 @@ const postModulesController = async (req, res) => {
   // Validate request
 
   // Access data
-  const sql = buildModulesInsertSql(req.body);
+  const sql = buildModulesInsertSql();
   const { isSuccess, result, message: accessorMessage } = await createModules(sql,req.body);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
   res.status(201).json(result);
+};
+
+const putModulesController = async (req, res) => {
+  // Validate request
+  const id = req.params.id;
+  const record = req.body;
+
+  // Access data
+  const sql = buildModulesUpdateSql();
+  const { isSuccess, result, message: accessorMessage } = await updateModules(sql,id,record);
+  if (!isSuccess) return res.status(400).json({ message: accessorMessage });
+  
+  // Response to request
+  res.status(200).json(result);
 };
 
 const getUsersController = async (res, id, variant) => {
@@ -246,6 +283,8 @@ app.get('/api/modules/leader/:id', (req, res) => getModulesController(res, req.p
 app.get('/api/modules/users/:id', (req, res) => getModulesController(res, req.params.id, 'users'));
 
 app.post('/api/modules', postModulesController);
+
+app.put('/api/modules/:id', putModulesController);
 
 // Users
 app.get('/api/users', (req, res) => getUsersController(res, null, null));
