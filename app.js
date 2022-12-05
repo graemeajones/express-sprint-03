@@ -22,6 +22,11 @@ app.use(express.urlencoded({ extended: true }));
 const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
   setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET ');
 
+const buildModulesDeleteSql = () => {
+  let table = 'Modules';
+  return `DELETE FROM ${table} WHERE ModuleID=:ModuleID`;
+};
+  
 const buildModulesUpdateSql = () => {
   let table = 'Modules';
   let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
@@ -120,9 +125,25 @@ const buildYearsSelectSql = (id, variant) => {
   return sql;
 };
 
+const deleteModules = async (sql, id) => {
+  try {
+    const status = await database.query(sql, { ModuleID: id });
+    
+    return status[0].affectedRows === 0
+      ? { isSuccess: false, result: null, message: `Failed to delete record ${id}` }
+      : { isSuccess: true, result: null, message: 'Record successfully deleted' };
+  }
+  catch (error) {
+    return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
+  }
+};
+
 const updateModules = async (sql, id, record) => {
   try {
     const status = await database.query(sql, { ...record, ModuleID: id } );
+
+    if (status[0].affectedRows === 0)
+      return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
 
     const recoverRecordSql = buildModulesSelectSql(id, null);
 
@@ -188,7 +209,7 @@ const postModulemembersController = async (req, res) => {
 
   // Access data
   const sql = buildModulemembersInsertSql();
-  const { isSuccess, result, message: accessorMessage } = await createModulemembers(sql,req.body);
+  const { isSuccess, result, message: accessorMessage } = await createModulemembers(sql, req.body);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -224,7 +245,7 @@ const postModulesController = async (req, res) => {
 
   // Access data
   const sql = buildModulesInsertSql();
-  const { isSuccess, result, message: accessorMessage } = await createModules(sql,req.body);
+  const { isSuccess, result, message: accessorMessage } = await createModules(sql, req.body);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -238,11 +259,24 @@ const putModulesController = async (req, res) => {
 
   // Access data
   const sql = buildModulesUpdateSql();
-  const { isSuccess, result, message: accessorMessage } = await updateModules(sql,id,record);
+  const { isSuccess, result, message: accessorMessage } = await updateModules(sql, id, record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
   res.status(200).json(result);
+};
+
+const deleteModulesController = async (req, res) => {
+  // Validate request
+  const id = req.params.id;
+
+  // Access data
+  const sql = buildModulesDeleteSql();
+  const { isSuccess, result, message: accessorMessage } = await deleteModules(sql, id);
+  if (!isSuccess) return res.status(400).json({ message: accessorMessage });
+  
+  // Response to request
+  res.status(204).json({ message: accessorMessage });
 };
 
 const getUsersController = async (res, id, variant) => {
@@ -285,6 +319,8 @@ app.get('/api/modules/users/:id', (req, res) => getModulesController(res, req.pa
 app.post('/api/modules', postModulesController);
 
 app.put('/api/modules/:id', putModulesController);
+
+app.delete('/api/modules/:id', deleteModulesController);
 
 // Users
 app.get('/api/users', (req, res) => getUsersController(res, null, null));
