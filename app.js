@@ -140,7 +140,6 @@ const buildModulesDeleteSql = () => {
   return `DELETE FROM ${table} WHERE ModuleID=:ModuleID`;
 };
 
-
 // Create
 
 const createModulemembers = async (sql, record) => {
@@ -167,7 +166,7 @@ const createModules = async (sql, record) => {
     const recoverRecordSql = buildModulesSelectSql(status[0].insertId, null);
 
     const { isSuccess, result, message } = await read(recoverRecordSql);
-        
+    
     return isSuccess
       ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
       : { isSuccess: false, result: null, message: `Failed to recover the inserted record: ${message}` };
@@ -184,7 +183,7 @@ const createUsers = async (sql, record) => {
     const recoverRecordSql = buildUsersSelectSql(status[0].insertId, null);
 
     const { isSuccess, result, message } = await read(recoverRecordSql);
-        
+
     return isSuccess
       ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
       : { isSuccess: false, result: null, message: `Failed to recover the inserted record: ${message}` };
