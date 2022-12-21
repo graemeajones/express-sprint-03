@@ -358,7 +358,7 @@ const postUsersController = async (req, res) => {
 
   // Access data
   const sql = buildUsersInsertSql();
-  const { isSuccess, result, message: accessorMessage } = await createModules(sql, req.body);
+  const { isSuccess, result, message: accessorMessage } = await createUsers(sql, req.body);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
