@@ -140,6 +140,11 @@ const buildModulesDeleteSql = () => {
   return `DELETE FROM ${table} WHERE ModuleID=:ModuleID`;
 };
 
+const buildUsersDeleteSql = () => {
+  let table = 'Users';
+  return `DELETE FROM ${table} WHERE UserID=:UserID`;
+};
+
 // Create
 
 const createModulemembers = async (sql, record) => {
@@ -279,7 +284,9 @@ const deleteUsers = async (sql, id) => {
 
 // GET Controllers
 
-const getModulemembersController = async (res, id, variant) => {
+const getModulemembersController = async (req, res, variant) => {
+  const id = req.params.id;
+
   // Validate request
 
   // Access data
@@ -291,7 +298,9 @@ const getModulemembersController = async (res, id, variant) => {
   res.status(200).json(result);
 };
 
-const getModulesController = async (res, id, variant) => {
+const getModulesController = async (req, res, variant) => {
+  const id = req.params.id;
+
   // Validate request
 
   // Access data
@@ -303,7 +312,9 @@ const getModulesController = async (res, id, variant) => {
   res.status(200).json(result);
 };
 
-const getUsersController = async (res, id, variant) => {
+const getUsersController = async (req, res, variant) => {
+  const id = req.params.id;
+
   // Validate request
 
   // Access data
@@ -315,7 +326,9 @@ const getUsersController = async (res, id, variant) => {
   res.status(200).json(result);
 };
 
-const getYearsController = async (res, id, variant) => {
+const getYearsController = async (req, res, variant) => {
+  const id = req.params.id;
+
   // Validate request
 
   // Access data
@@ -330,11 +343,13 @@ const getYearsController = async (res, id, variant) => {
 // POST Controllers
 
 const postModulemembersController = async (req, res) => {
+  const record = req.body;
+
   // Validate request
 
   // Access data
   const sql = buildModulemembersInsertSql();
-  const { isSuccess, result, message: accessorMessage } = await createModulemembers(sql, req.body);
+  const { isSuccess, result, message: accessorMessage } = await createModulemembers(sql, record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -342,11 +357,13 @@ const postModulemembersController = async (req, res) => {
 };
 
 const postModulesController = async (req, res) => {
+  const record = req.body;
+  
   // Validate request
 
   // Access data
   const sql = buildModulesInsertSql();
-  const { isSuccess, result, message: accessorMessage } = await createModules(sql, req.body);
+  const { isSuccess, result, message: accessorMessage } = await createModules(sql, record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -354,11 +371,13 @@ const postModulesController = async (req, res) => {
 };
 
 const postUsersController = async (req, res) => {
+  const record = req.body;
+
   // Validate request
 
   // Access data
   const sql = buildUsersInsertSql();
-  const { isSuccess, result, message: accessorMessage } = await createUsers(sql, req.body);
+  const { isSuccess, result, message: accessorMessage } = await createUsers(sql, record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -368,9 +387,10 @@ const postUsersController = async (req, res) => {
 // PUT Controllers
 
 const putModulesController = async (req, res) => {
-  // Validate request
   const id = req.params.id;
   const record = req.body;
+
+  // Validate request
 
   // Access data
   const sql = buildModulesUpdateSql();
@@ -382,9 +402,10 @@ const putModulesController = async (req, res) => {
 };
 
 const putUsersController = async (req, res) => {
-  // Validate request
   const id = req.params.id;
   const record = req.body;
+
+  // Validate request
 
   // Access data
   const sql = buildUsersUpdateSql();
@@ -398,8 +419,9 @@ const putUsersController = async (req, res) => {
 // DELETE Controllers
 
 const deleteModulesController = async (req, res) => {
-  // Validate request
   const id = req.params.id;
+
+  // Validate request
 
   // Access data
   const sql = buildModulesDeleteSql();
@@ -411,8 +433,9 @@ const deleteModulesController = async (req, res) => {
 };
 
 const deleteUsersController = async (req, res) => {
-  // Validate request
   const id = req.params.id;
+
+  // Validate request
 
   // Access data
   const sql = buildUsersDeleteSql();
@@ -426,35 +449,35 @@ const deleteUsersController = async (req, res) => {
 
 // Endpoints -------------------------------------
 // Modulemembers
-app.get('/api/modulemembers', (req, res) => getModulemembersController(res,null,null));
-app.get('/api/modulemembers/:id', (req, res) => getModulemembersController(res,req.params.id,null));
+app.get('/api/modulemembers', (req, res) => getModulemembersController(req, res, null));
+app.get('/api/modulemembers/:id', (req, res) => getModulemembersController(req, res, null));
 
 app.post('/api/modulemembers', postModulemembersController);
 
 // Modules
-app.get('/api/modules', (req, res) => getModulesController(res, null, null));
-app.get('/api/modules/:id(\\d+)', (req, res) => getModulesController(res, req.params.id, null));
-app.get('/api/modules/leader/:id', (req, res) => getModulesController(res, req.params.id, 'leader'));
-app.get('/api/modules/users/:id', (req, res) => getModulesController(res, req.params.id, 'users'));
+app.get('/api/modules', (req, res) => getModulesController(req, res, null));
+app.get('/api/modules/:id(\\d+)', (req, res) => getModulesController(req, res, null));
+app.get('/api/modules/leader/:id', (req, res) => getModulesController(req, res, 'leader'));
+app.get('/api/modules/users/:id', (req, res) => getModulesController(req, res, 'users'));
 
 app.post('/api/modules', postModulesController);
 app.put('/api/modules/:id', putModulesController);
 app.delete('/api/modules/:id', deleteModulesController);
 
 // Users
-app.get('/api/users', (req, res) => getUsersController(res, null, null));
-app.get('/api/users/:id(\\d+)', (req, res) => getUsersController(res, req.params.id, null));
-app.get('/api/users/student', (req, res) => getUsersController(res, null, 'student'));
-app.get('/api/users/staff', (req, res) => getUsersController(res, null, 'staff'));
-app.get('/api/users/groups/:id', (req, res) => getUsersController(res, req.params.id, 'groups'));
+app.get('/api/users', (req, res) => getUsersController(req, res, null));
+app.get('/api/users/:id(\\d+)', (req, res) => getUsersController(req, res, null));
+app.get('/api/users/student', (req, res) => getUsersController(req, res, 'student'));
+app.get('/api/users/staff', (req, res) => getUsersController(req, res, 'staff'));
+app.get('/api/users/groups/:id', (req, res) => getUsersController(req, res, 'groups'));
 
 app.post('/api/users', postUsersController);
 app.put('/api/users/:id', putUsersController);
 app.delete('/api/users/:id', deleteUsersController);
 
 // Years
-app.get('/api/years', (req, res) => getYearsController(res, null, null));
-app.get('/api/years/:id', (req, res) => getYearsController(res, req.params.id, null));
+app.get('/api/years', (req, res) => getYearsController(req, res, null));
+app.get('/api/years/:id', (req, res) => getYearsController(req, res, null));
 
 // Start server ----------------------------------
 const PORT = process.env.PORT || 5000;
