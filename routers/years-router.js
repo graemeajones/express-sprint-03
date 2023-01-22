@@ -1,27 +1,8 @@
 import { Router } from 'express';
-import database from '../database.js';
+import { buildCreateQuery, buildReadQuery, buildUpdateQuery, buildDeleteQuery } from '../models/years-model.js';
+import database from './database.js';
 
 const router = Router();
-
-// Query builders --------------------------------
-
-const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
-  setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
-);
-
-const buildYearsReadQuery = (id, variant) => {
-  let table = 'Years';
-  let fields = ['YearID', 'YearName'];
-  let sql = '';
-
-  switch (variant) {
-    default:
-      sql = `SELECT ${fields} FROM ${table}`;
-      if (id) sql += ` WHERE YearID=:ID`;
-  }
-
-  return { sql, data: { ID: id } };
-};
 
 // Data accessors --------------------------------
 
@@ -45,7 +26,7 @@ const getYearsController = async (req, res, variant) => {
   // Validate request
 
   // Access data
-  const query = buildYearsReadQuery(id, variant);
+  const query = buildReadQuery(id, variant);
   const { isSuccess, result, message: accessorMessage } = await read(query);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
