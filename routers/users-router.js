@@ -1,66 +1,17 @@
 import { Router } from 'express';
+import Model from '../models/Model.js';
+import modelConfig from '../models/users-model.js';
 import database from '../database.js';
 
-const router = new Router();
+// Model -----------------------------------------
 
-// Query builders --------------------------------
-
-const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
-  setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
-);
-
-const buildUsersReadQuery = (id, variant) => {
-  let table = '((Users LEFT JOIN Usertypes ON UserUsertypeID=UsertypeID) LEFT JOIN Years ON UserYearID=YearID )';
-  let fields = ['UserID', 'UserFirstname', 'UserLastname', 'UserEmail', 'UserLevel', 'UserYearID', 'UserUsertypeID', 'UserImageURL', 'UsertypeName AS UserUsertypeName', 'YearName AS UserYearName'];
-  let sql = '';
-
-  const STAFF = 1; // Primary key for staff type in Unibase Usertypes table
-  const STUDENT = 2; // Primary key for student type in Unibase Usertypes table
-
-  switch (variant) {
-    case 'student':
-      sql = `SELECT ${fields} FROM ${table} WHERE UserUsertypeID=${STUDENT}`;
-      break;
-    case 'staff':
-      sql = `SELECT ${fields} FROM ${table} WHERE UserUsertypeID=${STAFF}`;
-      break;
-    case 'groups':
-      table = `Groupmembers INNER JOIN ${table} ON Groupmembers.GroupmemberUserID=Users.UserID`;
-      sql = `SELECT ${fields} FROM ${table} WHERE GroupmemberGroupID=:ID`;
-      break;
-    default:
-      sql = `SELECT ${fields} FROM ${table}`;
-      if (id) sql += ` WHERE UserID=:ID`;
-  }
-  
-  return { sql, data: { ID: id } };
-};
-
-const buildUsersCreateQuery = (record) => {
-  let table = 'Users';
-  let mutableFields = ['UserFirstname', 'UserLastname', 'UserEmail', 'UserLevel', 'UserYearID', 'UserUsertypeID', 'UserImageURL'];
-  const sql = `INSERT INTO ${table} ` + buildSetFields(mutableFields);
-  return { sql, data: record };
-};
-
-const buildUsersUpdateQuery = (record, id) => {
-  let table = 'Users';
-  let mutableFields = ['UserFirstname', 'UserLastname', 'UserEmail', 'UserLevel', 'UserYearID', 'UserUsertypeID', 'UserImageURL'];
-  const sql = `UPDATE ${table} ` + buildSetFields(mutableFields) + ` WHERE UserID=:UserID`;
-  return { sql, data: { ...record, UserID: id } };
-};
-
-const buildUsersDeleteQuery = (id) => {
-  let table = 'Users';
-  const sql = `DELETE FROM ${table} WHERE UserID=:UserID`;
-  return { sql, data: { UserID: id } };
-};
+const model = new Model(modelConfig);
 
 // Data accessors --------------------------------
 
 const create = async (record) => {
   try {
-    const { sql, data } = buildUsersCreateQuery(record);
+    const { sql, data } = model.buildCreateQuery(record);
     const status = await database.query(sql, data);
 
     const { isSuccess, result, message } = await read(status[0].insertId, null);
@@ -75,7 +26,7 @@ const create = async (record) => {
 
 const read = async (id, variant) => {
   try {
-    const { sql, data } = buildUsersReadQuery(id, variant);
+    const { sql, data } = model.buildReadQuery(id, variant);
     const [result] = await database.query(sql, data);
     return (result.length === 0)
       ? { isSuccess: false, result: null, message: 'No record(s) found' }
@@ -88,7 +39,7 @@ const read = async (id, variant) => {
 
 const update = async (record, id) => {
   try {
-    const { sql, data } = buildUsersUpdateQuery(record, id);
+    const { sql, data } = model.buildUpdateQuery(record, id);
     const status = await database.query(sql, data);
     if (status[0].affectedRows === 0)
       return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
@@ -105,10 +56,10 @@ const update = async (record, id) => {
 
 const _delete = async (id) => {
   try {
-    const { sql, data } = buildUsersDeleteQuery(id);
+    const { sql, data } = model.buildDeleteQuery(id);
     const status = await database.query(sql, data);
-    return status[s].affectedRows === 0
-      ? { isSuccess: false, result: null, message: `Failed to delete record ${deleteQuery.data.UserID}` }
+    return status[0].affectedRows === 0
+      ? { isSuccess: false, result: null, message: `Failed to delete record ${id}` }
       : { isSuccess: true, result: null, message: 'Record successfully deleted' };
   }
   catch (error) {
@@ -172,6 +123,8 @@ const deleteUsersController = async (req, res) => {
 };
 
 // Endpoints -------------------------------------
+
+const router = new Router();
 
 router.get('/', (req, res) => getUsersController(req, res, null));
 router.get('/:id(\\d+)', (req, res) => getUsersController(req, res, null));
