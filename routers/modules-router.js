@@ -1,8 +1,54 @@
 import { Router } from 'express';
-import { buildCreateQuery, buildReadQuery, buildUpdateQuery, buildDeleteQuery } from '../models/modules-model.js';
-import database from './database.js';
+import database from '../database.js';
 
 const router = Router();
+
+// Query builders --------------------------------
+
+const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
+  setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
+);
+
+const buildModulesCreateQuery = (record) => {
+  let table = 'Modules';
+  let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
+  const sql = `INSERT INTO ${table} ` + buildSetFields(mutableFields);
+  return { sql, data: record };
+};
+
+const buildModulesReadQuery = (id, variant) => {
+  let table = '((Modules LEFT JOIN Users ON ModuleLeaderID=UserID) LEFT JOIN Years ON ModuleYearID=YearID )';
+  let fields = ['ModuleID', 'ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL', 'CONCAT(UserFirstname," ",UserLastname) AS ModuleLeaderName', 'YearName AS ModuleYearName'];
+  let sql = '';
+
+  switch (variant) {
+    case 'leader':
+      sql = `SELECT ${fields} FROM ${table} WHERE ModuleLeaderID=:ID`;
+      break;
+    case 'users':
+      table = `Modulemembers INNER JOIN ${table} ON Modulemembers.ModulememberModuleID=Modules.ModuleID`;
+      sql = `SELECT ${fields} FROM ${table} WHERE ModulememberUserID=:ID`;
+      break;
+    default:
+      sql = `SELECT ${fields} FROM ${table}`;
+      if (id) sql += ` WHERE ModuleID=:ID`;
+  }
+
+  return { sql, data: { ID: id } };
+};
+
+const buildModulesUpdateQuery = (record, id) => {
+  let table = 'Modules';
+  let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
+  const sql = `UPDATE ${table} ` + buildSetFields(mutableFields) + ` WHERE ModuleID=:ModuleID`;
+  return { sql, data: { ...record, ModuleID: id } };
+};
+
+const buildModulesDeleteQuery = (id) => {
+  let table = 'Modules';
+  const sql = `DELETE FROM ${table} WHERE ModuleID=:ModuleID`;
+  return { sql, data: { ModuleID: id } };
+};
 
 // Data accessors --------------------------------
 
@@ -10,7 +56,7 @@ const createModules = async (createQuery) => {
   try {
     const status = await database.query(createQuery.sql, createQuery.data);
 
-    const readQuery = buildReadQuery(status[0].insertId, null);
+    const readQuery = buildModulesReadQuery(status[0].insertId, null);
 
     const { isSuccess, result, message } = await read(readQuery);
     
@@ -42,7 +88,7 @@ const updateModules = async (updateQuery) => {
     if (status[0].affectedRows === 0)
       return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
 
-    const readQuery = buildReadQuery(updateQuery.data.ModuleID, null);
+    const readQuery = buildModulesReadQuery(updateQuery.data.ModuleID, null);
 
     const { isSuccess, result, message } = await read(readQuery);
         
@@ -76,7 +122,7 @@ const getModulesController = async (req, res, variant) => {
   // Validate request
 
   // Access data
-  const query = buildReadQuery(id, variant);
+  const query = buildModulesReadQuery(id, variant);
   const { isSuccess, result, message: accessorMessage } = await read(query);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
@@ -90,7 +136,7 @@ const postModulesController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildCreateQuery(record); 
+  const query = buildModulesCreateQuery(record); 
   const { isSuccess, result, message: accessorMessage } = await createModules(query);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
@@ -105,7 +151,7 @@ const putModulesController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildUpdateQuery(record, id);
+  const query = buildModulesUpdateQuery(record, id);
   const { isSuccess, result, message: accessorMessage } = await updateModules(query);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
@@ -119,7 +165,7 @@ const deleteModulesController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildDeleteQuery(id);
+  const query = buildModulesDeleteQuery(id);
   const { isSuccess, result, message: accessorMessage } = await deleteModules(query);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   

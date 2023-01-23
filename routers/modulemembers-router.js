@@ -1,8 +1,38 @@
 import { Router } from 'express';
-import { buildCreateQuery, buildReadQuery, buildUpdateQuery, buildDeleteQuery } from '../models/users-model.js';
-import database from './database.js';
+import database from '../database.js';
 
 const router = Router();
+
+// Query builders --------------------------------
+
+const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
+  setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
+);
+
+const buildModulemembersReadQuery = (id, variant) => {
+  let table = '((Modulemembers LEFT JOIN Users ON ModulememberUserID=UserID) LEFT JOIN Modules ON ModulememberModuleID=ModuleID )';
+  let fields = [
+    'ModulememberID',
+    'ModulememberModuleID', 'CONCAT(ModuleCode," ",ModuleName) AS ModulememberModuleName',
+    'ModulememberUserID', 'CONCAT(UserFirstname," ",UserLastname) AS ModulememberUserName'
+  ];
+  let sql = '';
+
+  switch (variant) {
+    default:
+      sql = `SELECT ${fields} FROM ${table}`;
+      if (id) sql += ` WHERE ModulememberID=:ID`;
+  }
+
+  return { sql, data: { ID: id } };
+};
+
+const buildModulemembersCreateQuery = (record) => {
+  let table = 'Modulemembers';
+  let mutableFields = ['ModulememberModuleID', 'ModulememberUserID'];
+  const sql = `INSERT INTO ${table} ` + buildSetFields(mutableFields);
+  return { sql, data: record }; 
+};
 
 // Data accessors --------------------------------
 
@@ -10,7 +40,7 @@ const createModulemembers = async (createQuery) => {
   try {
     const status = await database.query(createQuery.sql, createQuery.data);
 
-    const readQuery = buildReadQuery(status[0].insertId, null);
+    const readQuery = buildModulemembersReadQuery(status[0].insertId, null);
 
     const { isSuccess, result, message } = await read(readQuery);
         
@@ -43,7 +73,7 @@ const getModulemembersController = async (req, res, variant) => {
   // Validate request
 
   // Access data
-  const query = buildReadQuery(id, variant);
+  const query = buildModulemembersReadQuery(id, variant);
   const { isSuccess, result, message: accessorMessage } = await read(query);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
@@ -57,7 +87,7 @@ const postModulemembersController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildCreateQuery(record);
+  const query = buildModulemembersCreateQuery(record);
   const { isSuccess, result, message: accessorMessage } = await createModulemembers(query);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
