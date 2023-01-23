@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import database from '../database.js';
 
-const router = Router();
+const router = new Router();
 
 // Query builders --------------------------------
 
@@ -58,14 +58,12 @@ const buildUsersDeleteQuery = (id) => {
 
 // Data accessors --------------------------------
 
-const createUsers = async (createQuery) => {
+const create = async (record) => {
   try {
-    const status = await database.query(createQuery.sql, createQuery.data);
+    const { sql, data } = buildUsersCreateQuery(record);
+    const status = await database.query(sql, data);
 
-    const readQuery = buildUsersReadQuery(status[0].insertId, null);
-
-    const { isSuccess, result, message } = await read(readQuery);
-
+    const { isSuccess, result, message } = await read(status[0].insertId, null);
     return isSuccess
       ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
       : { isSuccess: false, result: null, message: `Failed to recover the inserted record: ${message}` };
@@ -75,9 +73,10 @@ const createUsers = async (createQuery) => {
   }
 };
 
-const read = async (readQuery) => {
+const read = async (id, variant) => {
   try {
-    const [result] = await database.query(readQuery.sql, readQuery.data);
+    const { sql, data } = buildUsersReadQuery(id, variant);
+    const [result] = await database.query(sql, data);
     return (result.length === 0)
       ? { isSuccess: false, result: null, message: 'No record(s) found' }
       : { isSuccess: true, result: result, message: 'Record(s) successfully recovered' };
@@ -87,17 +86,14 @@ const read = async (readQuery) => {
   }
 };
 
-const updateUsers = async (updateQuery) => {
+const update = async (record, id) => {
   try {
-    const status = await database.query(updateQuery.sql, updateQuery.data);
-
+    const { sql, data } = buildUsersUpdateQuery(record, id);
+    const status = await database.query(sql, data);
     if (status[0].affectedRows === 0)
       return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
 
-    const readQuery = buildUsersReadQuery(updateQuery.data.UserID, null);
-
-    const { isSuccess, result, message } = await read(readQuery);
-        
+    const { isSuccess, result, message } = await read(id, null);        
     return isSuccess
       ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
       : { isSuccess: false, result: null, message: `Failed to recover the updated record: ${message}` };
@@ -107,10 +103,10 @@ const updateUsers = async (updateQuery) => {
   }
 };
 
-const deleteUsers = async (deleteQuery) => {
+const _delete = async (id) => {
   try {
-    const status = await database.query(deleteQuery.sql, deleteQuery.data);
-    
+    const { sql, data } = buildUsersDeleteQuery(id);
+    const status = await database.query(sql, data);
     return status[s].affectedRows === 0
       ? { isSuccess: false, result: null, message: `Failed to delete record ${deleteQuery.data.UserID}` }
       : { isSuccess: true, result: null, message: 'Record successfully deleted' };
@@ -128,8 +124,7 @@ const getUsersController = async (req, res, variant) => {
   // Validate request
 
   // Access data
-  const query = buildUsersReadQuery(id, variant);
-  const { isSuccess, result, message: accessorMessage } = await read(query);
+  const { isSuccess, result, message: accessorMessage } = await read(id, variant);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
   // Response to request
@@ -142,8 +137,7 @@ const postUsersController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildUsersCreateQuery(record);
-  const { isSuccess, result, message: accessorMessage } = await createUsers(query);
+  const { isSuccess, result, message: accessorMessage } = await create(record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -157,8 +151,7 @@ const putUsersController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildUsersUpdateQuery(record, id);
-  const { isSuccess, result, message: accessorMessage } = await updateUsers(query);
+  const { isSuccess, result, message: accessorMessage } = await update(record, id);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -171,8 +164,7 @@ const deleteUsersController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildUsersDeleteQuery(id);
-  const { isSuccess, result, message: accessorMessage } = await deleteUsers(query);
+  const { isSuccess, result, message: accessorMessage } = await _delete(id);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request

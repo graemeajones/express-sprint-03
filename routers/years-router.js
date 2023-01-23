@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import database from '../database.js';
 
-const router = Router();
+const router = new Router();
 
 // Query builders --------------------------------
 
@@ -25,9 +25,10 @@ const buildYearsReadQuery = (id, variant) => {
 
 // Data accessors --------------------------------
 
-const read = async (readQuery) => {
+const read = async (id, variant) => {
   try {
-    const [result] = await database.query(readQuery.sql, readQuery.data);
+    const { sql, data } = buildYearsReadQuery(id, variant);
+    const [result] = await database.query(sql, data);
     return (result.length === 0)
       ? { isSuccess: false, result: null, message: 'No record(s) found' }
       : { isSuccess: true, result: result, message: 'Record(s) successfully recovered' };
@@ -45,8 +46,7 @@ const getYearsController = async (req, res, variant) => {
   // Validate request
 
   // Access data
-  const query = buildYearsReadQuery(id, variant);
-  const { isSuccess, result, message: accessorMessage } = await read(query);
+  const { isSuccess, result, message: accessorMessage } = await read(id, variant);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
   // Response to request
