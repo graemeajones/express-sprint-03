@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import database from '../database.js';
 
-const router = Router();
+const router = new Router();
 
 // Query builders --------------------------------
 
@@ -36,14 +36,12 @@ const buildModulemembersCreateQuery = (record) => {
 
 // Data accessors --------------------------------
 
-const createModulemembers = async (createQuery) => {
+const create = async (record) => {
   try {
-    const status = await database.query(createQuery.sql, createQuery.data);
+    const { sql, data } = buildModulemembersCreateQuery(record);
+    const status = await database.query(sql, data);
 
-    const readQuery = buildModulemembersReadQuery(status[0].insertId, null);
-
-    const { isSuccess, result, message } = await read(readQuery);
-        
+    const { isSuccess, result, message } = await read(status[0].insertId, null);        
     return isSuccess
       ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
       : { isSuccess: false, result: null, message: `Failed to recover the inserted record: ${message}` };
@@ -53,9 +51,10 @@ const createModulemembers = async (createQuery) => {
   }
 };
 
-const read = async (readQuery) => {
+const read = async (id, variant) => {
   try {
-    const [result] = await database.query(readQuery.sql, readQuery.data);
+    const { sql, data } = buildModulemembersReadQuery(id, variant);
+    const [result] = await database.query(sql, data);
     return (result.length === 0)
       ? { isSuccess: false, result: null, message: 'No record(s) found' }
       : { isSuccess: true, result: result, message: 'Record(s) successfully recovered' };
@@ -73,8 +72,7 @@ const getModulemembersController = async (req, res, variant) => {
   // Validate request
 
   // Access data
-  const query = buildModulemembersReadQuery(id, variant);
-  const { isSuccess, result, message: accessorMessage } = await read(query);
+  const { isSuccess, result, message: accessorMessage } = await read(id, variant);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
   // Response to request
@@ -87,8 +85,7 @@ const postModulemembersController = async (req, res) => {
   // Validate request
 
   // Access data
-  const query = buildModulemembersCreateQuery(record);
-  const { isSuccess, result, message: accessorMessage } = await createModulemembers(query);
+  const { isSuccess, result, message: accessorMessage } = await create(record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
