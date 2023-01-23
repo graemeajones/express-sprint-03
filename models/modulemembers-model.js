@@ -31,6 +31,6 @@ export const buildUpdateQuery = (record, id) => {
 
 export const buildDeleteQuery = (id) => {
   const sql = `DELETE FROM ${table} WHERE ${idField}=:${idField}`;
-  return { sql, data: { [idField]: id } };
+  return { sql, data: { ...record, [idField]: id } };
 };
 
