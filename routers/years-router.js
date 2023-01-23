@@ -9,7 +9,7 @@ const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
   setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
 );
 
-const buildYearsReadQuery = (id, variant) => {
+const buildReadQuery = (id, variant) => {
   let table = 'Years';
   let fields = ['YearID', 'YearName'];
   let sql = '';
@@ -27,7 +27,7 @@ const buildYearsReadQuery = (id, variant) => {
 
 const read = async (id, variant) => {
   try {
-    const { sql, data } = buildYearsReadQuery(id, variant);
+    const { sql, data } = buildReadQuery(id, variant);
     const [result] = await database.query(sql, data);
     return (result.length === 0)
       ? { isSuccess: false, result: null, message: 'No record(s) found' }

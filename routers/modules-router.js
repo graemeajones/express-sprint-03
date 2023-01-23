@@ -1,60 +1,17 @@
 import { Router } from 'express';
+import Model from '../models/Model.js';
+import modelConfig from '../models/modules-model.js';
 import database from '../database.js';
 
-const router = new Router();
+// Model -----------------------------------------
 
-// Query builders --------------------------------
-
-const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
-  setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
-);
-
-const buildModulesCreateQuery = (record) => {
-  let table = 'Modules';
-  let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
-  const sql = `INSERT INTO ${table} ` + buildSetFields(mutableFields);
-  return { sql, data: record };
-};
-
-const buildModulesReadQuery = (id, variant) => {
-  let table = '((Modules LEFT JOIN Users ON ModuleLeaderID=UserID) LEFT JOIN Years ON ModuleYearID=YearID )';
-  let fields = ['ModuleID', 'ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL', 'CONCAT(UserFirstname," ",UserLastname) AS ModuleLeaderName', 'YearName AS ModuleYearName'];
-  let sql = '';
-
-  switch (variant) {
-    case 'leader':
-      sql = `SELECT ${fields} FROM ${table} WHERE ModuleLeaderID=:ID`;
-      break;
-    case 'users':
-      table = `Modulemembers INNER JOIN ${table} ON Modulemembers.ModulememberModuleID=Modules.ModuleID`;
-      sql = `SELECT ${fields} FROM ${table} WHERE ModulememberUserID=:ID`;
-      break;
-    default:
-      sql = `SELECT ${fields} FROM ${table}`;
-      if (id) sql += ` WHERE ModuleID=:ID`;
-  }
-
-  return { sql, data: { ID: id } };
-};
-
-const buildModulesUpdateQuery = (record, id) => {
-  let table = 'Modules';
-  let mutableFields = ['ModuleName', 'ModuleCode', 'ModuleLevel', 'ModuleYearID', 'ModuleLeaderID', 'ModuleImageURL'];
-  const sql = `UPDATE ${table} ` + buildSetFields(mutableFields) + ` WHERE ModuleID=:ModuleID`;
-  return { sql, data: { ...record, ModuleID: id } };
-};
-
-const buildModulesDeleteQuery = (id) => {
-  let table = 'Modules';
-  const sql = `DELETE FROM ${table} WHERE ModuleID=:ModuleID`;
-  return { sql, data: { ModuleID: id } };
-};
+const model = new Model(modelConfig);
 
 // Data accessors --------------------------------
 
 const create = async (record) => {
   try {
-    const { sql, data } = buildModulesCreateQuery(record); 
+    const { sql, data } = model.buildCreateQuery(record); 
     const status = await database.query(sql, data);
 
     const { isSuccess, result, message } = await read(status[0].insertId, null);
@@ -69,7 +26,7 @@ const create = async (record) => {
 
 const read = async (id, variant) => {
   try {
-    const { sql, data } = buildModulesReadQuery(id, variant);
+    const { sql, data } = model.buildReadQuery(id, variant);
     const [result] = await database.query(sql, data);
     return (result.length === 0)
       ? { isSuccess: false, result: null, message: 'No record(s) found' }
@@ -82,7 +39,7 @@ const read = async (id, variant) => {
 
 const update = async (record, id) => {
   try {
-    const { sql, data } = buildModulesUpdateQuery(record, id);
+    const { sql, data } = model.buildUpdateQuery(record, id);
     const status = await database.query(sql, data);
     if (status[0].affectedRows === 0)
       return { isSuccess: false, result: null, message: 'Failed to update record: no rows affected' };
@@ -99,10 +56,10 @@ const update = async (record, id) => {
 
 const _delete = async (id) => {
   try {
-    const { sql, data } = buildModulesDeleteQuery(id);
+    const { sql, data } = model.buildDeleteQuery(id);
     const status = await database.query(sql, data);
     return status[0].affectedRows === 0
-      ? { isSuccess: false, result: null, message: `Failed to delete record ${deleteQuery.data.ModuleID}` }
+      ? { isSuccess: false, result: null, message: `Failed to delete record ${id}` }
       : { isSuccess: true, result: null, message: 'Record successfully deleted' };
   }
   catch (error) {
@@ -167,6 +124,8 @@ const deleteModulesController = async (req, res) => {
 };
 
 // Endpoints -------------------------------------
+
+const router = new Router();
 
 router.get('/', (req, res) => getModulesController(req, res, null));
 router.get('/:id(\\d+)', (req, res) => getModulesController(req, res, null));
