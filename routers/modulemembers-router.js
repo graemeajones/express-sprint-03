@@ -3,6 +3,7 @@ import Model from '../models/Model.js';
 import modelConfig from '../models/modulemembers-model.js';
 import database from '../database.js';
 import Accessor from '../accessor/Accessor.js';
+import Controller from '../controller/Controller.js';
 
 // Model -----------------------------------------
 
@@ -12,40 +13,18 @@ const model = new Model(modelConfig);
 
 const accessor = new Accessor(model, database);
 
-// Controllers -----------------------------------
+// Controller ------------------------------------
 
-const getController = async (req, res, variant) => {
-  const id = req.params.id;
-
-  // Validate request
-
-  // Access data
-  const { isSuccess, result, message: accessorMessage } = await accessor.read(id, variant);
-  if (!isSuccess) return res.status(404).json({ message: accessorMessage });
-  
-  // Response to request
-  res.status(200).json(result);
-};
-
-const postController = async (req, res) => {
-  const record = req.body;
-
-  // Validate request
-
-  // Access data
-  const { isSuccess, result, message: accessorMessage } = await accessor.create(record);
-  if (!isSuccess) return res.status(400).json({ message: accessorMessage });
-  
-  // Response to request
-  res.status(201).json(result);
-};
+const controller = new Controller(accessor);
 
 // Endpoints -------------------------------------
 
 const router = new Router();
 
-router.get('/', (req, res) => getController(req, res, null));
-router.get('/:id', (req, res) => getController(req, res, null));
-router.post('/', postController);
+router.get('/', (req, res) => controller.get(req, res, null));
+router.get('/:id', (req, res) => controller.get(req, res, null));
+router.post('/', controller.post);
+router.put('/', controller.post);
+router.delete('/', controller.post);
 
 export default router;

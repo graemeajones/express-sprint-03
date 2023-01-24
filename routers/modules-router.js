@@ -3,6 +3,7 @@ import Model from '../models/Model.js';
 import modelConfig from '../models/modules-model.js';
 import database from '../database.js';
 import Accessor from '../accessor/Accessor.js';
+import Controller from '../controller/Controller.js';
 
 // Model -----------------------------------------
 
@@ -12,72 +13,20 @@ const model = new Model(modelConfig);
 
 const accessor = new Accessor(model, database);
 
-// Controllers -----------------------------------
+// Controller ------------------------------------
 
-const getController = async (req, res, variant) => {
-  const id = req.params.id;
-
-  // Validate request
-
-  // Access data
-  const { isSuccess, result, message: accessorMessage } = await accessor.read(id, variant);
-  if (!isSuccess) return res.status(404).json({ message: accessorMessage });
-  
-  // Response to request
-  res.status(200).json(result);
-};
-
-const postController = async (req, res) => {
-  const record = req.body;
-  
-  // Validate request
-
-  // Access data
-  const { isSuccess, result, message: accessorMessage } = await accessor.create(record);
-  if (!isSuccess) return res.status(400).json({ message: accessorMessage });
-  
-  // Response to request
-  res.status(201).json(result);
-};
-
-const putController = async (req, res) => {
-  const id = req.params.id;
-  const record = req.body;
-
-  // Validate request
-
-  // Access data
-  const { isSuccess, result, message: accessorMessage } = await accessor.update(record, id);
-  if (!isSuccess) return res.status(400).json({ message: accessorMessage });
-  
-  // Response to request
-  res.status(200).json(result);
-};
-
-const deleteController = async (req, res) => {
-  const id = req.params.id;
-
-  // Validate request
-
-  // Access data
-  
-  const { isSuccess, result, message: accessorMessage } = await accessor.delete(id);
-  if (!isSuccess) return res.status(400).json({ message: accessorMessage });
-  
-  // Response to request
-  res.status(204).json({ message: accessorMessage });
-};
+const controller = new Controller(accessor);
 
 // Endpoints -------------------------------------
 
 const router = new Router();
 
-router.get('/', (req, res) => getController(req, res, null));
-router.get('/:id(\\d+)', (req, res) => getController(req, res, null));
-router.get('/leader/:id', (req, res) => getController(req, res, 'leader'));
-router.get('/users/:id', (req, res) => getController(req, res, 'users'));
-router.post('/', postController);
-router.put('/:id', putController);
-router.delete('/:id', deleteController);
+router.get('/', (req, res) => controller.get(req, res, null));
+router.get('/:id(\\d+)', (req, res) => controller.get(req, res, null));
+router.get('/leader/:id', (req, res) => controller.get(req, res, 'leader'));
+router.get('/users/:id', (req, res) => controller.get(req, res, 'users'));
+router.post('/', controller.post);
+router.put('/:id', controller.put);
+router.delete('/:id', controller.delete);
 
 export default router;
