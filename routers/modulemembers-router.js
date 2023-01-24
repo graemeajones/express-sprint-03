@@ -1,91 +1,39 @@
 import { Router } from 'express';
+import Model from '../models/Model.js';
+import modelConfig from '../models/modulemembers-model.js';
 import database from '../database.js';
+import Accessor from '../accessor/Accessor.js';
 
-const router = new Router();
+// Model -----------------------------------------
 
-// Query builders --------------------------------
+const model = new Model(modelConfig);
 
-const buildSetFields = (fields) => fields.reduce((setSQL, field, index) =>
-  setSQL + `${field}=:${field}` + ((index === fields.length - 1) ? '' : ', '), 'SET '
-);
+// Data accessor ---------------------------------
 
-const buildModulemembersReadQuery = (id, variant) => {
-  let table = '((Modulemembers LEFT JOIN Users ON ModulememberUserID=UserID) LEFT JOIN Modules ON ModulememberModuleID=ModuleID )';
-  let fields = [
-    'ModulememberID',
-    'ModulememberModuleID', 'CONCAT(ModuleCode," ",ModuleName) AS ModulememberModuleName',
-    'ModulememberUserID', 'CONCAT(UserFirstname," ",UserLastname) AS ModulememberUserName'
-  ];
-  let sql = '';
-
-  switch (variant) {
-    default:
-      sql = `SELECT ${fields} FROM ${table}`;
-      if (id) sql += ` WHERE ModulememberID=:ID`;
-  }
-
-  return { sql, data: { ID: id } };
-};
-
-const buildModulemembersCreateQuery = (record) => {
-  let table = 'Modulemembers';
-  let mutableFields = ['ModulememberModuleID', 'ModulememberUserID'];
-  const sql = `INSERT INTO ${table} ` + buildSetFields(mutableFields);
-  return { sql, data: record }; 
-};
-
-// Data accessors --------------------------------
-
-const create = async (record) => {
-  try {
-    const { sql, data } = buildModulemembersCreateQuery(record);
-    const status = await database.query(sql, data);
-
-    const { isSuccess, result, message } = await read(status[0].insertId, null);        
-    return isSuccess
-      ? { isSuccess: true, result: result, message: 'Record successfully recovered' }
-      : { isSuccess: false, result: null, message: `Failed to recover the inserted record: ${message}` };
-  }
-  catch (error) {
-    return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
-  }
-};
-
-const read = async (id, variant) => {
-  try {
-    const { sql, data } = buildModulemembersReadQuery(id, variant);
-    const [result] = await database.query(sql, data);
-    return (result.length === 0)
-      ? { isSuccess: false, result: null, message: 'No record(s) found' }
-      : { isSuccess: true, result: result, message: 'Record(s) successfully recovered' };
-  }
-  catch (error) {
-    return { isSuccess: false, result: null, message: `Failed to execute query: ${error.message}` };
-  }
-};
+const accessor = new Accessor(model, database);
 
 // Controllers -----------------------------------
 
-const getModulemembersController = async (req, res, variant) => {
+const getController = async (req, res, variant) => {
   const id = req.params.id;
 
   // Validate request
 
   // Access data
-  const { isSuccess, result, message: accessorMessage } = await read(id, variant);
+  const { isSuccess, result, message: accessorMessage } = await accessor.read(id, variant);
   if (!isSuccess) return res.status(404).json({ message: accessorMessage });
   
   // Response to request
   res.status(200).json(result);
 };
 
-const postModulemembersController = async (req, res) => {
+const postController = async (req, res) => {
   const record = req.body;
 
   // Validate request
 
   // Access data
-  const { isSuccess, result, message: accessorMessage } = await create(record);
+  const { isSuccess, result, message: accessorMessage } = await accessor.create(record);
   if (!isSuccess) return res.status(400).json({ message: accessorMessage });
   
   // Response to request
@@ -94,8 +42,10 @@ const postModulemembersController = async (req, res) => {
 
 // Endpoints -------------------------------------
 
-router.get('/', (req, res) => getModulemembersController(req, res, null));
-router.get('/:id', (req, res) => getModulemembersController(req, res, null));
-router.post('/', postModulemembersController);
+const router = new Router();
+
+router.get('/', (req, res) => getController(req, res, null));
+router.get('/:id', (req, res) => getController(req, res, null));
+router.post('/', postController);
 
 export default router;
